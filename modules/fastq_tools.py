@@ -1,6 +1,5 @@
 from .sequence_tools import gc_content
 
-# Определяем константы прямо в модуле
 DEFAULT_GC_BOUNDS = (0, 100)
 DEFAULT_LENGTH_BOUNDS = (0, 2**32)
 DEFAULT_QUALITY_THRESHOLD = 0
