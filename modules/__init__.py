@@ -1,6 +1,4 @@
 """
-BioinfoUtils modules package
-
 This package contains core modules for bioinformatics sequence analysis:
 - sequence_tools: DNA/RNA sequence manipulation utilities
 - fastq_tools: FASTQ file processing and filtering utilities
