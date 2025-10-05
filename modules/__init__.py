@@ -47,4 +47,3 @@ __all__ = [
     "DEFAULT_LENGTH_BOUNDS",
     "DEFAULT_QUALITY_THRESHOLD",
 ]
-
