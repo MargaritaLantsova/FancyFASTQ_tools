@@ -5,7 +5,7 @@
 FancyFASTQ_tools is a comprehensive Python toolkit for bioinformatics sequence analysis, providing utilities for DNA/RNA sequence manipulation and FASTQ file filtering. The package offers both programmatic and interactive interfaces for bioinformatics workflows.
 
 ![Bioinformatics](https://wallpapers.com/images/hd/dna-background-np9ddwjkk0tcwe36.jpg)
-*Источник: [BioIcons Collection](https://wallpapers.com/background/dna-background-np9ddwjkk0tcwe36.html)*
+*Источник: [wallpapers.com](https://wallpapers.com/background/dna-background-np9ddwjkk0tcwe36.html)*
 
 </div>
 ## Content
