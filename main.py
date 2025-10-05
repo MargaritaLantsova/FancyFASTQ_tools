@@ -6,7 +6,7 @@ Main script
 # Imports
 from modules import sequence_tools, fastq_tools
 
-# Используем константы из модуля fastq_tools
+# Constants from module fastq_tools
 DEFAULT_GC_BOUNDS = fastq_tools.DEFAULT_GC_BOUNDS
 DEFAULT_LENGTH_BOUNDS = fastq_tools.DEFAULT_LENGTH_BOUNDS
 DEFAULT_QUALITY_THRESHOLD = fastq_tools.DEFAULT_QUALITY_THRESHOLD
