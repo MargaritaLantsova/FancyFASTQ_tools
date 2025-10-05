@@ -178,20 +178,21 @@ Returns: Filtered dictionary of sequences
 
 
 ## FAQ
-Q: Can I process RNA sequences with this toolkit?
-A: Yes! The toolkit automatically detects and handles both DNA and RNA sequences, including proper transcription between them.
 
-Q: What quality encoding does the FASTQ filter use?
-A: The toolkit uses Phred+33 encoding, which is standard for most modern sequencing platforms.
+### ❓ Can I process RNA sequences with this toolkit?
+**✅ Yes!** The toolkit automatically detects and handles both DNA and RNA sequences, including proper transcription between them.
 
-Q: Can I filter by multiple criteria simultaneously?
-A: Absolutely! The filter_fastq function applies all specified filters (GC content, length, and quality) together.
+### ❓ What quality encoding does the FASTQ filter use?
+**✅** The toolkit uses **Phred+33 encoding**, which is standard for most modern sequencing platforms.
 
-Q: Does the toolkit handle mixed-case sequences?
-A: Yes, all sequence operations are case-insensitive and preserve the original case in output.
+### ❓ Can I filter by multiple criteria simultaneously?
+**✅ Absolutely!** The `filter_fastq` function applies all specified filters (GC content, length, and quality) together.
 
-Q: What happens if I have both T and U in a sequence?
-A: The validation functions will identify this as an invalid nucleic acid sequence.
+### ❓ Does the toolkit handle mixed-case sequences?
+**✅ Yes,** all sequence operations are case-insensitive and preserve the original case in output.
 
-Q: How do I run the application?
-A: Simply run python main.py from the command line in the FancyFASTQ_tools directory.
+### ❓ What happens if I have both T and U in a sequence?
+**⚠️** The validation functions will identify this as an **invalid nucleic acid sequence**.
+
+### ❓ How do I run the application?
+**🚀** Simply run `python main.py` from the command line in the FancyFASTQ_tools directory.
