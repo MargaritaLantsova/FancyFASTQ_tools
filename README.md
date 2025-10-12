@@ -8,7 +8,8 @@ FancyFASTQ_tools is a comprehensive Python toolkit for bioinformatics sequence a
 *Источник: [wallpapers.com](https://wallpapers.com/background/dna-background-np9ddwjkk0tcwe36.html)*
 
 </div>
-## Content
+
+# Content
 
 - [Installation](#installation)
 - [Features](#features)
