@@ -4,12 +4,12 @@ import gzip
 import io
 import os
 import tempfile
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Union
 
-# Public defaults used by main.py
-DEFAULT_GC_BOUNDS = (0, 100)
-DEFAULT_LENGTH_BOUNDS = (0, 2**32)
-DEFAULT_QUALITY_THRESHOLD = 0
+# Public defaults used by callers / CLI
+DEFAULT_GC_BOUNDS: Tuple[int, int] = (0, 100)
+DEFAULT_LENGTH_BOUNDS: Tuple[int, int] = (0, 2**32)
+DEFAULT_QUALITY_THRESHOLD: int = 0
 
 FASTQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
@@ -65,23 +65,29 @@ def phred33_avg(qual: str) -> float:
     return sum(ord(ch) - 33 for ch in qual) / max(1, len(qual))
 
 
-def gc_percent(seq: str) -> float:
-    """GC percentage in the sequence."""
-    seq_upper = seq.upper()
+def gc_content(sequence: str) -> float:
+    """GC content percentage."""
+    if not sequence:
+        return 0.0
+    seq_upper = sequence.upper()
     gc_count = sum(1 for base in seq_upper if base in ("G", "C"))
-    return 100.0 * gc_count / max(1, len(seq_upper))
+    return 100.0 * gc_count / len(seq_upper)
+
+
+# Backward-compat: some code may call gc_percent
+gc_percent = gc_content
 
 
 def normalize_bounds_pair(
-    bounds,
+    bounds: Union[int, Tuple[int, int]],
     default_low: int,
     default_high: int,
 ) -> Tuple[int, int]:
     """
     Normalize a bound spec to (low, high).
-    Accepts int (upper bound) or a 2-tuple/list.
+    Accepts int (upper bound) or a 2-tuple.
     """
-    if isinstance(bounds, (tuple, list)) and len(bounds) == 2:
+    if isinstance(bounds, tuple) and len(bounds) == 2:
         low, high = int(bounds[0]), int(bounds[1])
     elif isinstance(bounds, int):
         low, high = default_low, int(bounds)
@@ -142,11 +148,32 @@ def write_fastq_record(
     out_stream.write(f"@{name}\n{seq}\n+\n{qual}\n")
 
 
+def filter_sequence(
+    seq_data: Tuple[str, str],
+    gc_bounds: Union[int, Tuple[int, int]] = DEFAULT_GC_BOUNDS,
+    length_bounds: Union[int, Tuple[int, int]] = DEFAULT_LENGTH_BOUNDS,
+    quality_threshold: int = DEFAULT_QUALITY_THRESHOLD,
+) -> bool:
+    """
+    In-memory filter for one read.
+    seq_data: (sequence, quality) -> True if passes all thresholds.
+    """
+    sequence, quality = seq_data
+
+    len_low, len_high = normalize_bounds_pair(length_bounds, 0, 2**32)
+    gc_low, gc_high = normalize_bounds_pair(gc_bounds, 0, 100)
+
+    length_ok = len_low <= len(sequence) <= len_high
+    gc_ok = gc_low <= gc_content(sequence) <= gc_high
+    qual_ok = phred33_avg(quality) >= quality_threshold
+    return length_ok and gc_ok and qual_ok
+
+
 def filter_fastq_stream(
     input_fastq: str,
     output_fastq: str,
-    gc_bounds=DEFAULT_GC_BOUNDS,
-    length_bounds=DEFAULT_LENGTH_BOUNDS,
+    gc_bounds: Union[int, Tuple[int, int]] = DEFAULT_GC_BOUNDS,
+    length_bounds: Union[int, Tuple[int, int]] = DEFAULT_LENGTH_BOUNDS,
     quality_threshold: int = DEFAULT_QUALITY_THRESHOLD,
 ) -> Tuple[str, int, int]:
     """
@@ -164,17 +191,15 @@ def filter_fastq_stream(
         with tmp_handle:
             for name, seq, qual in iter_fastq(input_fastq):
                 total += 1
-                if not (len_low <= len(seq) <= len_high):
-                    continue
-                if not (gc_low <= gc_percent(seq) <= gc_high):
-                    continue
-                if phred33_avg(qual) < quality_threshold:
-                    continue
-                write_fastq_record(tmp_handle, name, seq, qual)
-                kept += 1
+                length_ok = len_low <= len(seq) <= len_high
+                gc_ok = gc_low <= gc_content(seq) <= gc_high
+                qual_ok = phred33_avg(qual) >= quality_threshold
+                if length_ok and gc_ok and qual_ok:
+                    write_fastq_record(tmp_handle, name, seq, qual)
+                    kept += 1
         os.replace(tmp_path, out_path)  # atomic replace
     except Exception:
-        # make sure no temp files are left behind
+        # ensure no temp files are left behind on error
         try:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
