@@ -242,13 +242,16 @@ def _cli():
     p1.add_argument("--input-fasta", required=True)
     p1.add_argument("--output-fasta")
 
-    p2 = sub.add_parser("parse-blast", help="BLAST txt → best-hit descriptions (sorted)")
+    p2 = sub.add_parser("parse-blast", 
+                        help="BLAST txt → best-hit descriptions (sorted)")
     p2.add_argument("--input-file", required=True)
     p2.add_argument("--output-file", required=True)
 
-    p3 = sub.add_parser("gbk-neighbors", help="Select neighbor CDS translations to FASTA")
+    p3 = sub.add_parser("gbk-neighbors", 
+                        help="Select neighbor CDS translations to FASTA")
     p3.add_argument("--input-gbk", required=True)
-    p3.add_argument("--genes", required=True, help="Comma/space-separated string or multiple args", nargs="+")
+    p3.add_argument("--genes", required=True,
+                    help="Comma/space-separated string or multiple args", nargs="+")
     p3.add_argument("--n-before", type=int, default=1)
     p3.add_argument("--n-after", type=int, default=1)
     p3.add_argument("--output-fasta", default="neighbors.fasta")

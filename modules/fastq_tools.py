@@ -25,21 +25,21 @@ def iter_fastq(path: str) -> Generator[Tuple[str, str, str], None, None]:
             if not header:
                 break
             if not header.startswith("@"):
-                raise ValueError(f"Ожидался '@' в заголовке, строка: {header!r}")
+                raise ValueError(f"Expected '@' in header, string: {header!r}")
             name = header[1:].strip().split()[0]
 
             seq = fh.readline()
             if not seq:
-                raise ValueError("Неожиданный конец файла после заголовка")
+                raise ValueError("Unexpected end of file after header")
             seq = seq.strip()
 
             plus = fh.readline()
             if not plus or not plus.startswith("+"):
-                raise ValueError("Отсутствует '+'-строка записи FASTQ")
+                raise ValueError("The '+'-string of the FASTQ record is missing")
 
             qual = fh.readline()
             if not qual:
-                raise ValueError("Неожиданный конец файла в строке качества")
+                raise ValueError("Unexpected end of file in quality string")
             qual = qual.strip()
 
             if len(seq) != len(qual):

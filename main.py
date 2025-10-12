@@ -153,14 +153,14 @@ def _cli():
     p = argparse.ArgumentParser(description="FancyFASTQ tools")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    f = sub.add_parser("fastq-filter", help="Фильтрация FASTQ на лету")
-    f.add_argument("--input-fastq", required=True, help="Путь к входному .fastq[.gz]")
-    f.add_argument("--output-fastq", required=True, help="Имя выходного FASTQ (всегда в ./filtered)")
+    f = sub.add_parser("fastq-filter", help="On-the-fly FASTQ filtering")
+    f.add_argument("--input-fastq", required=True, help="The path to the entrance .fastq[.gz]")
+    f.add_argument("--output-fastq", required=True, help="Output FASTQ name (always in ./filtered)")
     f.add_argument("--gc-bounds", nargs="+", type=int, default=[0, 100],
-                   help="GC границы: либо один верхний порог, либо два значения (min max)")
+                   help="GC bounds: either one upper threshold or two values (min max)")
     f.add_argument("--length-bounds", nargs="+", type=int, default=[0, 2**32],
-                   help="Границы длины: либо один верхний порог, либо два значения (min max)")
-    f.add_argument("--min-qual", type=int, default=0, help="Минимальная средняя Phred+33")
+                   help="Length limits: either one upper threshold or two values (min max)")
+    f.add_argument("--min-qual", type=int, default=0, help="Minimum average Phred+33")
 
     args = p.parse_args()
 
