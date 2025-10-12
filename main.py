@@ -5,6 +5,8 @@ Main script
 
 # Imports
 from modules import sequence_tools, fastq_tools
+import argparse
+from modules.fastq_tools import filter_fastq_stream
 
 # Constants from module fastq_tools
 DEFAULT_GC_BOUNDS = fastq_tools.DEFAULT_GC_BOUNDS
@@ -145,3 +147,34 @@ if __name__ == "__main__":
 
     # Demonstration
     run_dna_rna_tools()
+
+
+def _cli():
+    p = argparse.ArgumentParser(description="FancyFASTQ tools")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    f = sub.add_parser("fastq-filter", help="Фильтрация FASTQ на лету")
+    f.add_argument("--input-fastq", required=True, help="Путь к входному .fastq[.gz]")
+    f.add_argument("--output-fastq", required=True, help="Имя выходного FASTQ (всегда в ./filtered)")
+    f.add_argument("--gc-bounds", nargs="+", type=int, default=[0, 100],
+                   help="GC границы: либо один верхний порог, либо два значения (min max)")
+    f.add_argument("--length-bounds", nargs="+", type=int, default=[0, 2**32],
+                   help="Границы длины: либо один верхний порог, либо два значения (min max)")
+    f.add_argument("--min-qual", type=int, default=0, help="Минимальная средняя Phred+33")
+
+    args = p.parse_args()
+
+    if args.cmd == "fastq-filter":
+        gc = args.gc_bounds if len(args.gc_bounds) != 1 else args.gc_bounds[0]
+        lb = args.length_bounds if len(args.length_bounds) != 1 else args.length_bounds[0]
+        out_path, total, kept = filter_fastq_stream(
+            input_fastq=args.input_fastq,
+            output_fastq=args.output_fastq,
+            gc_bounds=gc,
+            length_bounds=lb,
+            quality_threshold=args.min_qual,
+        )
+        print(f"Input: {args.input_fastq}\nOutput: {out_path}\nTotal: {total}\nKept: {kept}")
+
+if __name__ == "__main__":
+    _cli()
