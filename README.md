@@ -154,6 +154,34 @@ filtered = filter_fastq(
 print(f"Original: {len(sequences)} sequences")
 print(f"Filtered: {len(filtered)} sequences")
 ```
+## API Reference
+```
+run_dna_rna_tools(*args)
+```
+Process DNA/RNA sequences with specified operations.
+
+Parameters:
+```
+    *args: Sequences followed by operation name
+
+    Operations: "reverse", "complement", "reverse_complement", "transcribe", "is_dna", "is_rna", "gc_content", "is_nucleic_acid"
+```
+Returns: Single result or list of results
+filter_fastq(seqs, gc_bounds=(0, 100), length_bounds=(0, 2**32), quality_threshold=0)
+
+Filter FASTQ sequences by multiple criteria.
+
+Parameters:
+```
+    seqs: Dictionary {read_name: (sequence, quality)}
+
+    gc_bounds: GC content bounds (number or tuple)
+
+    length_bounds: Length bounds (number or tuple)
+
+    quality_threshold: Minimum average Phred quality
+```
+Returns: Filtered dictionary of sequences
 
 ### Streaming FASTQ filtering (CLI)
 
@@ -240,36 +268,6 @@ python modules/bio_files_processor.py gbk-neighbors \
 * **No overwrites:** if a target path exists, a suffix `__1`, `__2`, … is appended until a free name is found.
 * **Atomic writes:** data is written to a temp file and then swapped into place via `os.replace`, preventing half-written files.
 * **FASTQ filter output:** always saved under `./filtered/` (created if missing) using the name from `--output-fastq`, with the same uniqueness guarantees.
-
-## API Reference
-```
-run_dna_rna_tools(*args)
-```
-Process DNA/RNA sequences with specified operations.
-
-Parameters:
-```
-    *args: Sequences followed by operation name
-
-    Operations: "reverse", "complement", "reverse_complement", "transcribe", "is_dna", "is_rna", "gc_content", "is_nucleic_acid"
-```
-Returns: Single result or list of results
-filter_fastq(seqs, gc_bounds=(0, 100), length_bounds=(0, 2**32), quality_threshold=0)
-
-Filter FASTQ sequences by multiple criteria.
-
-Parameters:
-```
-    seqs: Dictionary {read_name: (sequence, quality)}
-
-    gc_bounds: GC content bounds (number or tuple)
-
-    length_bounds: Length bounds (number or tuple)
-
-    quality_threshold: Minimum average Phred quality
-```
-Returns: Filtered dictionary of sequences
-
 
 ## FAQ
 
