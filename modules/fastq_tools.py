@@ -3,83 +3,94 @@ import os
 import io
 import gzip
 import tempfile
-import itertools
-from typing import Generator, Iterable, Tuple, Optional
+from typing import Generator, Tuple
 
 FASTQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
+
 def _open_maybe_gzip(path: str, mode: str = "rt") -> io.TextIOBase:
     if path.endswith(".gz"):
-        # encoding only for text mode
+        # encoding only in text mode
         return gzip.open(path, mode, encoding="utf-8")  # type: ignore[arg-type]
     return open(path, mode, encoding="utf-8")  # type: ignore[call-arg]
 
+
 def iter_fastq(path: str) -> Generator[Tuple[str, str, str], None, None]:
     """
-    Streaming FASTQ: reads four-line records one by one.
-    name without '@', seq and qual without '\n'. Validates seq/qual lengths.
+    Yield FASTQ records one-by-one as (name, seq, qual).
+    `name` is without '@'; `seq` and `qual` are newline-stripped.
     """
-    with _open_maybe_gzip(path, "rt") as fh:
+    with _open_maybe_gzip(path, "rt") as file_in:
         while True:
-            header = fh.readline()
+            header = file_in.readline()
             if not header:
                 break
             if not header.startswith("@"):
-                raise ValueError(f"Expected '@' in header, string: {header!r}")
+                raise ValueError(
+                    "Expected '@' at record header, got: {!r}".format(header)
+                )
             name = header[1:].strip().split()[0]
 
-            seq = fh.readline()
-            if not seq:
-                raise ValueError("Unexpected end of file after header")
-            seq = seq.strip()
+            seq_line = file_in.readline()
+            if not seq_line:
+                raise ValueError("Unexpected EOF after header")
+            seq = seq_line.strip()
 
-            plus = fh.readline()
+            plus = file_in.readline()
             if not plus or not plus.startswith("+"):
-                raise ValueError("The '+'-string of the FASTQ record is missing")
+                raise ValueError("Missing '+' line in FASTQ record")
 
-            qual = fh.readline()
-            if not qual:
-                raise ValueError("Unexpected end of file in quality string")
-            qual = qual.strip()
+            qual_line = file_in.readline()
+            if not qual_line:
+                raise ValueError("Unexpected EOF in quality line")
+            qual = qual_line.strip()
 
             if len(seq) != len(qual):
                 raise ValueError(
-                    f"Длины seq({len(seq)}) и qual({len(qual)}) не совпадают для рида {name}"
+                    "Length mismatch: seq({}) vs qual({}) for read {}".format(
+                        len(seq), len(qual), name
+                    )
                 )
             yield name, seq, qual
 
+
 def phred33_avg(qual: str) -> float:
-    # Mean quality score (Phred+33)
-    return sum(ord(c) - 33 for c in qual) / max(1, len(qual))
+    """Mean quality score (Phred+33)."""
+    return sum(ord(ch) - 33 for ch in qual) / max(1, len(qual))
+
 
 def gc_percent(seq: str) -> float:
-    s = seq.upper()
-    gc = sum(1 for b in s if b in ("G", "C"))
-    return 100.0 * gc / max(1, len(s))
+    """GC percentage in the sequence."""
+    seq_upper = seq.upper()
+    gc_count = sum(1 for base in seq_upper if base in ("G", "C"))
+    return 100.0 * gc_count / max(1, len(seq_upper))
 
-def _normalize_bounds(bounds, default_low: int, default_high: int) -> Tuple[int, int]:
+
+def normalize_bounds_pair(
+    bounds, default_low: int, default_high: int
+) -> Tuple[int, int]:
+    """Normalize bounds to a (low, high) integer pair."""
     if isinstance(bounds, (tuple, list)) and len(bounds) == 2:
-        lo, hi = int(bounds[0]), int(bounds[1])
+        low, high = int(bounds[0]), int(bounds[1])
     elif isinstance(bounds, int):
-        lo, hi = default_low, int(bounds)
+        low, high = default_low, int(bounds)
     else:
-        lo, hi = default_low, default_high
-    if lo > hi:
-        lo, hi = hi, lo
-    return lo, hi
+        low, high = default_low, default_high
+    if low > high:
+        low, high = high, low
+    return low, high
+
 
 def safe_filtered_path(output_fastq: str) -> str:
     """
-    Returns a safe path under the filtered/ directory, with a unique filename.
+    Return a unique path under ./filtered for the requested output filename.
     """
     os.makedirs("filtered", exist_ok=True)
-    base = os.path.basename(output_fastq)
-    if not base:
-        base = "filtered.fastq"
+    base = os.path.basename(output_fastq) or "filtered.fastq"
     out_path = os.path.join("filtered", base)
 
     root, ext = os.path.splitext(out_path)
-    # handle double extension .fastq.gz properly
+    # handle double extensions properly
     if base.endswith(".fastq.gz"):
         root = out_path[:-9]
         ext = ".fastq.gz"
@@ -87,27 +98,33 @@ def safe_filtered_path(output_fastq: str) -> str:
         root = out_path[:-5]
         ext = ".fq.gz"
 
-    i = 1
+    index = 1
     candidate = out_path
     while os.path.exists(candidate):
-        candidate = f"{root}__{i}{ext}"
-        i += 1
+        candidate = f"{root}__{index}{ext}"
+        index += 1
     return candidate
+
 
 def _atomic_write_text(final_path: str) -> Tuple[tempfile._TemporaryFileWrapper, str]:
     """
-    Creates a temporary file next to final_path and returns (handle, tmp_path).
-    After writing, the caller does os.replace(tmp_path, final_path).
+    Create a temp file next to `final_path` and return (handle, tmp_path).
+    After writing, replace tmp with the final path atomically.
     """
-    dir_ = os.path.dirname(os.path.abspath(final_path)) or "."
-    os.makedirs(dir_, exist_ok=True)
+    dir_path = os.path.dirname(os.path.abspath(final_path)) or "."
+    os.makedirs(dir_path, exist_ok=True)
     tmp = tempfile.NamedTemporaryFile(
-        mode="wt", encoding="utf-8", prefix=".tmp_", dir=dir_, delete=False
+        mode="wt", encoding="utf-8", prefix=".tmp_", dir=dir_path, delete=False
     )
     return tmp, tmp.name
 
-def write_fastq_record(handle: io.TextIOBase, name: str, seq: str, qual: str) -> None:
-    handle.write(f"@{name}\n{seq}\n+\n{qual}\n")
+
+def write_fastq_record(
+    out_stream: io.TextIOBase, name: str, seq: str, qual: str
+) -> None:
+    """Write a single FASTQ record to an open text stream."""
+    out_stream.write(f"@{name}\n{seq}\n+\n{qual}\n")
+
 
 def filter_fastq_stream(
     input_fastq: str,
@@ -117,13 +134,11 @@ def filter_fastq_stream(
     quality_threshold: int = 0,
 ) -> Tuple[str, int, int]:
     """
-    Reads input_fastq record-by-record, applies filters, and immediately writes
-    passing reads into a safe file inside the filtered/ folder.
-    Returns (output_path, total, kept).
+    Read records from `input_fastq`, filter on the fly, and write passing reads
+    to a safe file under ./filtered. Return (output_path, total, kept).
     """
-    # normalize thresholds
-    gc_lo, gc_hi = _normalize_bounds(gc_bounds, 0, 100)
-    len_lo, len_hi = _normalize_bounds(length_bounds, 0, 2**32)
+    gc_low, gc_high = normalize_bounds_pair(gc_bounds, 0, 100)
+    len_low, len_high = normalize_bounds_pair(length_bounds, 0, 2**32)
 
     out_path = safe_filtered_path(output_fastq)
     tmp_handle, tmp_path = _atomic_write_text(out_path)
@@ -133,9 +148,9 @@ def filter_fastq_stream(
         with tmp_handle:
             for name, seq, qual in iter_fastq(input_fastq):
                 total += 1
-                if not (len_lo <= len(seq) <= len_hi):
+                if not (len_low <= len(seq) <= len_high):
                     continue
-                if not (gc_lo <= gc_percent(seq) <= gc_hi):
+                if not (gc_low <= gc_percent(seq) <= gc_high):
                     continue
                 if phred33_avg(qual) < quality_threshold:
                     continue
@@ -143,7 +158,7 @@ def filter_fastq_stream(
                 kept += 1
         os.replace(tmp_path, out_path)  # atomic replace
     except Exception:
-        # on exception — do not leave temp files behind
+        # make sure no temp files are left behind
         try:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)

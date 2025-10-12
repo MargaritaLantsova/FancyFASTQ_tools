@@ -3,9 +3,8 @@
 Main script
 """
 
-# Imports
-from modules import sequence_tools, fastq_tools
 import argparse
+from modules import sequence_tools, fastq_tools
 from modules.fastq_tools import filter_fastq_stream
 
 # Constants from module fastq_tools
@@ -16,45 +15,37 @@ DEFAULT_QUALITY_THRESHOLD = fastq_tools.DEFAULT_QUALITY_THRESHOLD
 
 def run_dna_rna_tools(*args):
     """
-    Function for DNA/RNA sequence operations
-    Supports both interactive mode and function call with arguments
+    Function for DNA/RNA sequence operations.
+    Supports both interactive mode and function call with arguments.
     """
-    # If arguments provided - function mode
     if args:
         return _process_sequences(*args)
-
-    # Otherwise - interactive mode
     return _interactive_mode()
 
 
 def _process_sequences(*args):
-    """Process sequences and operation passed as arguments"""
+    """Process sequences and operation passed as arguments."""
     if len(args) < 2:
         raise ValueError("Sequence and operation must be provided")
 
-    # Improved argument unpacking
     *sequences, operation = args
 
-    # Check for empty sequences
     for seq in sequences:
         if not seq:
             raise ValueError("Empty sequence provided")
         if not sequence_tools.is_valid_nucleic_acid(seq):
             raise ValueError(f"Invalid nucleic acid sequence: {seq}")
 
-    # Check if operation exists
     if operation not in sequence_tools.OPERATIONS:
         raise ValueError(f"Unknown operation: {operation}")
 
-    # Process sequences using dictionary of operations
     operation_func = sequence_tools.OPERATIONS[operation]
     results = [operation_func(seq) for seq in sequences]
-
     return results[0] if len(results) == 1 else results
 
 
 def _interactive_mode():
-    """Interactive mode for sequence operations"""
+    """Interactive mode for sequence operations."""
     print("=== DNA/RNA Tools ===")
 
     while True:
@@ -72,15 +63,11 @@ def _interactive_mode():
 
         if choice == "0":
             break
-        elif choice in ["1", "2", "3", "4", "5", "6", "7"]:
+        if choice in ["1", "2", "3", "4", "5", "6", "7"]:
             sequence = input("Enter sequence: ").strip()
-
-            # Check for empty sequence
             if not sequence:
                 print("Error: empty sequence entered")
                 continue
-
-            # Check validity (except for validity check operation)
             if choice != "5" and not sequence_tools.is_valid_nucleic_acid(sequence):
                 print("Error: invalid nucleic acid sequence")
                 continue
@@ -89,15 +76,25 @@ def _interactive_mode():
                 operation_map = {
                     "1": ("reverse", sequence_tools.reverse),
                     "2": ("complement", sequence_tools.complement),
-                    "3": ("reverse complement", sequence_tools.reverse_complement),
+                    "3": (
+                        "reverse complement",
+                        sequence_tools.reverse_complement,
+                    ),
                     "4": ("transcription", sequence_tools.transcribe),
-                    "5": ("validity check", sequence_tools.is_valid_nucleic_acid),
+                    "5": (
+                        "validity check",
+                        sequence_tools.is_valid_nucleic_acid,
+                    ),
                     "6": (
                         "type determination",
                         lambda seq: (
                             "DNA"
                             if sequence_tools.is_dna(seq)
-                            else "RNA" if sequence_tools.is_rna(seq) else "Unknown"
+                            else (
+                                "RNA"
+                                if sequence_tools.is_rna(seq)
+                                else "Unknown"
+                            )
                         ),
                     ),
                     "7": ("GC content", sequence_tools.gc_content),
@@ -115,8 +112,8 @@ def _interactive_mode():
                 else:
                     print(f"{op_name.capitalize()}: {result}")
 
-            except ValueError as e:
-                print(f"Error: {e}")
+            except ValueError as err:
+                print(f"Error: {err}")
         else:
             print("Invalid choice, please try again")
 
@@ -128,53 +125,90 @@ def filter_fastq(
     quality_threshold=DEFAULT_QUALITY_THRESHOLD,
 ):
     """
-    Filter FASTQ sequences by GC content, length and quality
+    Filter FASTQ sequences by GC content, length and quality.
     """
     filtered_seqs = {}
-
     for seq_name, seq_data in seqs.items():
-        if fastq_tools.filter_sequence(
-            seq_data, gc_bounds, length_bounds, quality_threshold
-        ):
+        passed = fastq_tools.filter_sequence(
+            seq_data,
+            gc_bounds,
+            length_bounds,
+            quality_threshold,
+        )
+        if passed:
             filtered_seqs[seq_name] = seq_data
-
     return filtered_seqs
 
 
-# Example usage
-if __name__ == "__main__":
-    print("Bioinfo Utilities Package")
-
-    # Demonstration
-    run_dna_rna_tools()
-
-
 def _cli():
-    p = argparse.ArgumentParser(description="FancyFASTQ tools")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    """Command-line interface."""
+    parser = argparse.ArgumentParser(description="FancyFASTQ tools")
+    subparsers = parser.add_subparsers(dest="cmd", required=True)
 
-    f = sub.add_parser("fastq-filter", help="On-the-fly FASTQ filtering")
-    f.add_argument("--input-fastq", required=True, help="The path to the entrance .fastq[.gz]")
-    f.add_argument("--output-fastq", required=True, help="Output FASTQ name (always in ./filtered)")
-    f.add_argument("--gc-bounds", nargs="+", type=int, default=[0, 100],
-                   help="GC bounds: either one upper threshold or two values (min max)")
-    f.add_argument("--length-bounds", nargs="+", type=int, default=[0, 2**32],
-                   help="Length limits: either one upper threshold or two values (min max)")
-    f.add_argument("--min-qual", type=int, default=0, help="Minimum average Phred+33")
+    fastq_parser = subparsers.add_parser(
+        "fastq-filter",
+        help="On-the-fly FASTQ filtering",
+    )
+    fastq_parser.add_argument(
+        "--input-fastq",
+        required=True,
+        help="Path to input .fastq[.gz]",
+    )
+    fastq_parser.add_argument(
+        "--output-fastq",
+        required=True,
+        help="Output FASTQ name (written to ./filtered)",
+    )
+    fastq_parser.add_argument(
+        "--gc-bounds",
+        nargs="+",
+        type=int,
+        default=[0, 100],
+        help="GC bounds: one upper threshold or two values (min max)",
+    )
+    fastq_parser.add_argument(
+        "--length-bounds",
+        nargs="+",
+        type=int,
+        default=[0, 2**32],
+        help="Length bounds: one upper threshold or two values (min max)",
+    )
+    fastq_parser.add_argument(
+        "--min-qual",
+        type=int,
+        default=0,
+        help="Minimum average Phred+33",
+    )
 
-    args = p.parse_args()
+    args = parser.parse_args()
 
     if args.cmd == "fastq-filter":
-        gc = args.gc_bounds if len(args.gc_bounds) != 1 else args.gc_bounds[0]
-        lb = args.length_bounds if len(args.length_bounds) != 1 else args.length_bounds[0]
+        gc_bounds = (
+            args.gc_bounds
+            if len(args.gc_bounds) != 1
+            else args.gc_bounds[0]
+        )
+        length_bounds = (
+            args.length_bounds
+            if len(args.length_bounds) != 1
+            else args.length_bounds[0]
+        )
         out_path, total, kept = filter_fastq_stream(
             input_fastq=args.input_fastq,
             output_fastq=args.output_fastq,
-            gc_bounds=gc,
-            length_bounds=lb,
+            gc_bounds=gc_bounds,
+            length_bounds=length_bounds,
             quality_threshold=args.min_qual,
         )
-        print(f"Input: {args.input_fastq}\nOutput: {out_path}\nTotal: {total}\nKept: {kept}")
+        print(
+            "Input: {inp}\nOutput: {out}\nTotal: {tot}\nKept: {kept}".format(
+                inp=args.input_fastq,
+                out=out_path,
+                tot=total,
+                kept=kept,
+            )
+        )
+
 
 if __name__ == "__main__":
     _cli()
