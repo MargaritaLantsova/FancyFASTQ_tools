@@ -15,8 +15,8 @@ DEFAULT_QUALITY_THRESHOLD = fastq_tools.DEFAULT_QUALITY_THRESHOLD
 
 def run_dna_rna_tools(*args):
     """
-    Function for DNA/RNA sequence operations.
-    Supports both interactive mode and function call with arguments.
+    DNA/RNA sequence operations.
+    Supports interactive mode and function call with arguments.
     """
     if args:
         return _process_sequences(*args)
@@ -68,7 +68,9 @@ def _interactive_mode():
             if not sequence:
                 print("Error: empty sequence entered")
                 continue
-            if choice != "5" and not sequence_tools.is_valid_nucleic_acid(sequence):
+            if choice != "5" and not sequence_tools.is_valid_nucleic_acid(
+                sequence
+            ):
                 print("Error: invalid nucleic acid sequence")
                 continue
 

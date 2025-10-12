@@ -1,16 +1,22 @@
 from __future__ import annotations
-import os
-import io
+
 import gzip
+import io
+import os
 import tempfile
 from typing import Generator, Tuple
+
+# Public defaults used by main.py
+DEFAULT_GC_BOUNDS = (0, 100)
+DEFAULT_LENGTH_BOUNDS = (0, 2**32)
+DEFAULT_QUALITY_THRESHOLD = 0
 
 FASTQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 
 def _open_maybe_gzip(path: str, mode: str = "rt") -> io.TextIOBase:
+    """Open text file, transparently handling .gz."""
     if path.endswith(".gz"):
-        # encoding only in text mode
         return gzip.open(path, mode, encoding="utf-8")  # type: ignore[arg-type]
     return open(path, mode, encoding="utf-8")  # type: ignore[call-arg]
 
@@ -18,7 +24,7 @@ def _open_maybe_gzip(path: str, mode: str = "rt") -> io.TextIOBase:
 def iter_fastq(path: str) -> Generator[Tuple[str, str, str], None, None]:
     """
     Yield FASTQ records one-by-one as (name, seq, qual).
-    `name` is without '@'; `seq` and `qual` are newline-stripped.
+    name: without '@'; seq/qual: without newlines.
     """
     with _open_maybe_gzip(path, "rt") as file_in:
         while True:
@@ -67,9 +73,14 @@ def gc_percent(seq: str) -> float:
 
 
 def normalize_bounds_pair(
-    bounds, default_low: int, default_high: int
+    bounds,
+    default_low: int,
+    default_high: int,
 ) -> Tuple[int, int]:
-    """Normalize bounds to a (low, high) integer pair."""
+    """
+    Normalize a bound spec to (low, high).
+    Accepts int (upper bound) or a 2-tuple/list.
+    """
     if isinstance(bounds, (tuple, list)) and len(bounds) == 2:
         low, high = int(bounds[0]), int(bounds[1])
     elif isinstance(bounds, int):
@@ -82,9 +93,7 @@ def normalize_bounds_pair(
 
 
 def safe_filtered_path(output_fastq: str) -> str:
-    """
-    Return a unique path under ./filtered for the requested output filename.
-    """
+    """Return a unique path under ./filtered for the output filename."""
     os.makedirs("filtered", exist_ok=True)
     base = os.path.basename(output_fastq) or "filtered.fastq"
     out_path = os.path.join("filtered", base)
@@ -114,13 +123,20 @@ def _atomic_write_text(final_path: str) -> Tuple[tempfile._TemporaryFileWrapper,
     dir_path = os.path.dirname(os.path.abspath(final_path)) or "."
     os.makedirs(dir_path, exist_ok=True)
     tmp = tempfile.NamedTemporaryFile(
-        mode="wt", encoding="utf-8", prefix=".tmp_", dir=dir_path, delete=False
+        mode="wt",
+        encoding="utf-8",
+        prefix=".tmp_",
+        dir=dir_path,
+        delete=False,
     )
     return tmp, tmp.name
 
 
 def write_fastq_record(
-    out_stream: io.TextIOBase, name: str, seq: str, qual: str
+    out_stream: io.TextIOBase,
+    name: str,
+    seq: str,
+    qual: str,
 ) -> None:
     """Write a single FASTQ record to an open text stream."""
     out_stream.write(f"@{name}\n{seq}\n+\n{qual}\n")
@@ -129,9 +145,9 @@ def write_fastq_record(
 def filter_fastq_stream(
     input_fastq: str,
     output_fastq: str,
-    gc_bounds=(0, 100),
-    length_bounds=(0, 2**32),
-    quality_threshold: int = 0,
+    gc_bounds=DEFAULT_GC_BOUNDS,
+    length_bounds=DEFAULT_LENGTH_BOUNDS,
+    quality_threshold: int = DEFAULT_QUALITY_THRESHOLD,
 ) -> Tuple[str, int, int]:
     """
     Read records from `input_fastq`, filter on the fly, and write passing reads
