@@ -154,6 +154,93 @@ filtered = filter_fastq(
 print(f"Original: {len(sequences)} sequences")
 print(f"Filtered: {len(filtered)} sequences")
 ```
+
+### Streaming FASTQ filtering (CLI)
+
+Streaming filter: read a FASTQ record → check filters → write immediately. Keeps RAM usage low.
+
+```bash
+python main.py fastq-filter \
+  --input-fastq path/to/reads.fastq.gz \
+  --output-fastq filtered_reads.fastq \
+  --gc-bounds 40 65 \
+  --length-bounds 50 150 \
+  --min-qual 20
+```
+
+**Arguments**
+
+* `--input-fastq` — path to input FASTQ (`.fastq`/`.fq` and `.fastq.gz`/`.fq.gz` supported).
+* `--output-fastq` — output FASTQ **written to `./filtered/`**.
+* `--gc-bounds` — GC bounds: one upper threshold (`60`) or two values (`min max`, e.g. `40 65`).
+* `--length-bounds` — length bounds: one upper threshold (`150`) or two values (`50 150`).
+* `--min-qual` — minimal average Phred+33.
+
+**Example output**
+
+```
+Input: path/to/reads.fastq.gz
+Output: filtered/filtered_reads.fastq
+Total: 123456
+Kept: 78910
+```
+
+---
+
+### `bio_files_processor.py` (CLI)
+
+Three subcommands.
+
+#### `convert-fasta` — multiline FASTA → one-line FASTA
+
+```bash
+python modules/bio_files_processor.py convert-fasta \
+  --input-fasta data/genes.fasta \
+  --output-fasta genes.oneline.fasta
+```
+
+If `--output-fasta` is omitted, the file is created next to the input with the `.oneline.fasta` suffix.
+
+#### `parse-blast` — extract best-hit descriptions from BLAST TXT
+
+For every section `Sequences producing significant alignments:` take the **first** table row (best hit) and keep the **Description** (first column). Output is a unique, alphabetically sorted list (one per line).
+
+```bash
+python modules/bio_files_processor.py parse-blast \
+  --input-file results/example_blast_results.txt \
+  --output-file best_hits.txt
+```
+
+#### `gbk-neighbors` — neighbor CDS translations from GBK → FASTA
+
+From a GBK annotation, for each gene of interest (match by `/gene` or `/locus_tag`) write **n_before** genes before and **n_after** after (exclude the targets themselves).
+
+```bash
+python modules/bio_files_processor.py gbk-neighbors \
+  --input-gbk data/ecoli.gbk \
+  --genes acrA tolC marA \
+  --n-before 2 \
+  --n-after 2 \
+  --output-fasta neighbors.fasta
+```
+
+You may also pass a single string with separators:
+
+```bash
+python modules/bio_files_processor.py gbk-neighbors \
+  --input-gbk data/ecoli.gbk \
+  --genes "acrA, tolC; marA" \
+  --output-fasta neighbors.fasta
+```
+
+---
+
+### Safe output & atomic writes
+
+* **No overwrites:** if a target path exists, a suffix `__1`, `__2`, … is appended until a free name is found.
+* **Atomic writes:** data is written to a temp file and then swapped into place via `os.replace`, preventing half-written files.
+* **FASTQ filter output:** always saved under `./filtered/` (created if missing) using the name from `--output-fastq`, with the same uniqueness guarantees.
+
 ## API Reference
 ```
 run_dna_rna_tools(*args)
