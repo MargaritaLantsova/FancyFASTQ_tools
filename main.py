@@ -90,7 +90,16 @@ class NucleicAcidSequence(BiologicalSequence, ABC):
     Implements: complement, reverse, reverse_complement
     Polymorphism is achieved via _complement_table() and _alphabet().
     """
-
+    def gc_content(self) -> float:
+        """
+        GC content percentage (0..100).
+        """
+        self.check_alphabet()
+        if not self._seq:
+            return 0.0
+        gc = sum(1 for b in self._seq if b in ("G", "C"))
+        return 100.0 * gc / len(self._seq)
+        
     def complement(self) -> "NucleicAcidSequence":
         self.check_alphabet()
         trans = str.maketrans(self._complement_table())
